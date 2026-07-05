@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Fixed module path to match repository URL (github.com/e-roux/mcp-git-ops)
+
 ## 0.1.1
 
 - Refactored project to follow standard Go layout: main package under `cmd/mcp-git-ops` and internal packages under `internal/`

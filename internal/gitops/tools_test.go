@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/e-roux/agent-plugins/plugins/dev/mcp-git-ops/internal/platform"
+	"github.com/e-roux/mcp-git-ops/internal/platform"
 )
 
 type mockPlatform struct {

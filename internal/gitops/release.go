@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/e-roux/agent-plugins/plugins/dev/mcp-git-ops/internal/platform"
+	"github.com/e-roux/mcp-git-ops/internal/platform"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
