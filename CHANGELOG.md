@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0
+
+- Refactored: moved main.go from cmd/mcp-git-ops/ to root for simpler go install
+- Bumped minor version for breaking change in project structure
+
 ## 0.1.2
 
 - Fixed module path to match repository URL (github.com/e-roux/mcp-git-ops)
