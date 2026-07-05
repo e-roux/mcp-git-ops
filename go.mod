@@ -1,4 +1,4 @@
-module github.com/e-roux/agent-plugins/plugins/dev/mcp-git-ops
+module github.com/e-roux/mcp-git-ops
 
 go 1.26.2
 
