@@ -31,7 +31,7 @@ typecheck:
 	go build ./... && printf "  OK typecheck passed\n"
 
 build:
-	go build -ldflags "-s -w" -o $(BINARY) ./cmd/mcp-git-ops
+	go build -ldflags "-s -w" -o $(BINARY) .
 	printf "  OK built ./$(BINARY)\n"
 
 test.unit:
@@ -44,7 +44,7 @@ test.e2e:
 	printf "  OK no e2e tests\n"
 
 install:
-	GOBIN=$(GOBIN) go install ./cmd/mcp-git-ops
+	GOBIN=$(GOBIN) go install .
 	printf "  OK installed → %s/$(BINARY)\n" "$(GOBIN)"
 
 clean:
