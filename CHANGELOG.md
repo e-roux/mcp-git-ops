@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Patch release to trigger Go module proxy cache refresh
+
 ## 0.2.0
 
 - Refactored: moved main.go from cmd/mcp-git-ops/ to root for simpler go install
