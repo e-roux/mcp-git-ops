@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Added: Dynamic, scheme-aware HTTP/HTTPS API endpoint probing to auto-detect self-hosted platforms (GitHub Enterprise and GitLab self-hosted) based on response headers (`X-GitHub-*` and `X-GitLab-*`).
+- Fixed: Host parsing from remote Git URLs, properly preserving port numbers for HTTP/HTTPS targets and stripping SSH/SCP port numbers.
+- Added: Robust unit tests using local `httptest` mock servers to verify dynamic auto-detection behavior.
+
 ## 0.2.1
 
 - Patch release to trigger Go module proxy cache refresh
