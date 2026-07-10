@@ -3,9 +3,12 @@ package platform
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 type PushOptions struct {
@@ -130,6 +133,19 @@ func DetectPlatform(dir string) (Platform, error) {
 		return &AzureDevOpsPlatform{Dir: dir}, nil
 	}
 
+	host := parseHost(remoteURL)
+	if host != "" {
+		apiPrefix := getAPIPrefix(remoteURL, host)
+		if platformType := probePlatform(apiPrefix); platformType != "" {
+			switch platformType {
+			case "github":
+				return &GitHubPlatform{Dir: dir}, nil
+			case "gitlab":
+				return &GitLabPlatform{Dir: dir}, nil
+			}
+		}
+	}
+
 	if cliAvailable("glab") {
 		if _, err := RunExternalCommand(dir, "glab", "repo", "view"); err == nil {
 			return &GitLabPlatform{Dir: dir}, nil
@@ -195,4 +211,98 @@ func BoolFlag(b bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+func parseHost(remoteURL string) string {
+	lowered := strings.ToLower(remoteURL)
+	if strings.HasPrefix(lowered, "http://") || strings.HasPrefix(lowered, "https://") {
+		u, err := url.Parse(remoteURL)
+		if err == nil {
+			return u.Host
+		}
+	}
+	var urlStr string
+	if strings.HasPrefix(lowered, "ssh://") {
+		u, err := url.Parse(remoteURL)
+		if err == nil {
+			urlStr = u.Host
+		}
+	} else {
+		urlStr = remoteURL
+		if strings.Contains(urlStr, "@") {
+			parts := strings.SplitN(urlStr, "@", 2)
+			urlStr = parts[1]
+		}
+	}
+	if idx := strings.Index(urlStr, "/"); idx != -1 {
+		urlStr = urlStr[:idx]
+	}
+	if idx := strings.Index(urlStr, ":"); idx != -1 {
+		urlStr = urlStr[:idx]
+	}
+	return urlStr
+}
+
+func getAPIPrefix(remoteURL string, host string) string {
+	if strings.HasPrefix(strings.ToLower(remoteURL), "http://") {
+		return "http://" + host
+	}
+	return "https://" + host
+}
+
+func probePlatform(apiPrefix string) string {
+	client := &http.Client{
+		Timeout: 1500 * time.Millisecond,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	ch := make(chan string, 2)
+
+	go func() {
+		req, err := http.NewRequest("HEAD", apiPrefix+"/api/v3", nil)
+		if err != nil {
+			ch <- ""
+			return
+		}
+		resp, err := client.Do(req)
+		if err == nil && resp != nil {
+			defer resp.Body.Close()
+			for k := range resp.Header {
+				if strings.HasPrefix(strings.ToLower(k), "x-github-") {
+					ch <- "github"
+					return
+				}
+			}
+		}
+		ch <- ""
+	}()
+
+	go func() {
+		req, err := http.NewRequest("HEAD", apiPrefix+"/api/v4/", nil)
+		if err != nil {
+			ch <- ""
+			return
+		}
+		resp, err := client.Do(req)
+		if err == nil && resp != nil {
+			defer resp.Body.Close()
+			for k := range resp.Header {
+				if strings.HasPrefix(strings.ToLower(k), "x-gitlab-") {
+					ch <- "gitlab"
+					return
+				}
+			}
+		}
+		ch <- ""
+	}()
+
+	for i := 0; i < 2; i++ {
+		res := <-ch
+		if res != "" {
+			return res
+		}
+	}
+	return ""
 }
