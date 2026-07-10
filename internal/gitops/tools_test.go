@@ -20,6 +20,8 @@ type mockPlatform struct {
 	statusErr     error
 	releaseResult *platform.ReleaseInfo
 	releaseErr    error
+	listResult    []platform.ReleaseInfo
+	listErr       error
 }
 
 func (m *mockPlatform) PlatformName() string { return m.name }
@@ -42,6 +44,10 @@ func (m *mockPlatform) PRStatus(_ context.Context, _ platform.PRStatusOptions) (
 
 func (m *mockPlatform) CreateRelease(_ context.Context, _ platform.ReleaseCreateOptions) (*platform.ReleaseInfo, error) {
 	return m.releaseResult, m.releaseErr
+}
+
+func (m *mockPlatform) ListReleases(_ context.Context, _ platform.ListReleasesOptions) ([]platform.ReleaseInfo, error) {
+	return m.listResult, m.listErr
 }
 
 func TestAllPlatformsSatisfyInterface(t *testing.T) {
@@ -145,6 +151,7 @@ func TestToolDefinitions(t *testing.T) {
 		{"pr_status", func() interface{ GetName() string } { t := prStatusTool(); return &t }},
 		{"release_status", func() interface{ GetName() string } { t := releaseStatusTool(); return &t }},
 		{"create_release", func() interface{ GetName() string } { t := createReleaseTool(); return &t }},
+		{"list_releases", func() interface{ GetName() string } { t := listReleasesTool(); return &t }},
 	}
 
 	for _, tc := range tools {
@@ -301,5 +308,25 @@ func TestInferNextVersion(t *testing.T) {
 				t.Errorf("InferNextVersion(%q, %v) = %q, want %q", tc.latestTag, tc.sections, got, tc.wantBump)
 			}
 		})
+	}
+}
+
+func TestMockPlatformListReleases(t *testing.T) {
+	mock := &mockPlatform{
+		name: "test",
+		listResult: []platform.ReleaseInfo{
+			{Tag: "v1.0.0", Title: "Release 1.0.0", IsDraft: false, IsPrerelease: false, PublishedAt: "2026-07-10T12:00:00Z", URL: "https://example.com/tag/v1.0.0"},
+		},
+	}
+
+	result, err := mock.ListReleases(context.Background(), platform.ListReleasesOptions{Limit: 5})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 1 {
+		t.Errorf("len(result) = %d, want 1", len(result))
+	}
+	if result[0].Tag != "v1.0.0" {
+		t.Errorf("Tag = %q, want v1.0.0", result[0].Tag)
 	}
 }

@@ -3,6 +3,7 @@ package gitops
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/e-roux/mcp-git-ops/internal/platform"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -16,6 +17,7 @@ func RegisterAllTools(s *server.MCPServer) {
 	s.AddTool(prStatusTool(), handlePRStatus)
 	s.AddTool(releaseStatusTool(), handleReleaseStatus)
 	s.AddTool(createReleaseTool(), handleCreateRelease)
+	s.AddTool(listReleasesTool(), handleListReleases)
 }
 
 func pushTool() mcp.Tool {
@@ -56,6 +58,14 @@ func prStatusTool() mcp.Tool {
 		mcp.WithString("cwd", mcp.Description("Working directory of the git repository.")),
 		mcp.WithString("identifier", mcp.Description("PR number or MR ID.")),
 		mcp.WithString("branch", mcp.Description("Branch name to look up PR.")),
+	)
+}
+
+func listReleasesTool() mcp.Tool {
+	return mcp.NewTool("list_releases",
+		mcp.WithDescription("List releases from the repository. Auto-detects platform."),
+		mcp.WithString("cwd", mcp.Description("Working directory of the git repository.")),
+		mcp.WithNumber("limit", mcp.Description("Maximum number of releases to list. Defaults to 30.")),
 	)
 }
 
@@ -230,6 +240,59 @@ func boolArg(request mcp.CallToolRequest, key string) bool {
 	}
 	val, _ := args[key].(bool)
 	return val
+}
+
+func intArg(request mcp.CallToolRequest, key string, defaultValue int) int {
+	args, ok := request.Params.Arguments.(map[string]any)
+	if !ok {
+		return defaultValue
+	}
+	val, ok := args[key].(float64)
+	if !ok {
+		return defaultValue
+	}
+	return int(val)
+}
+
+func handleListReleases(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	cwd := stringArg(request, "cwd", "")
+	limit := intArg(request, "limit", 30)
+
+	plat, err := platform.DetectPlatform(cwd)
+	if err != nil {
+		return errorResult("platform detection failed: %s", err), nil
+	}
+
+	releases, err := plat.ListReleases(ctx, platform.ListReleasesOptions{Limit: limit})
+	if err != nil {
+		return errorResult("list releases failed (%s): %s", plat.PlatformName(), err), nil
+	}
+
+	if len(releases) == 0 {
+		return mcp.NewToolResultText("No releases found."), nil
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Releases for repository (%s):\n\n", plat.PlatformName()))
+	for _, r := range releases {
+		draftStr := ""
+		if r.IsDraft {
+			draftStr = " [Draft]"
+		}
+		preStr := ""
+		if r.IsPrerelease {
+			preStr = " [Pre-release]"
+		}
+		sb.WriteString(fmt.Sprintf("- %s (%s)%s%s\n", r.Title, r.Tag, draftStr, preStr))
+		if r.PublishedAt != "" {
+			sb.WriteString(fmt.Sprintf("  Published: %s\n", r.PublishedAt))
+		}
+		if r.URL != "" {
+			sb.WriteString(fmt.Sprintf("  URL: %s\n", r.URL))
+		}
+	}
+
+	return mcp.NewToolResultText(sb.String()), nil
 }
 
 func errorResult(format string, args ...any) *mcp.CallToolResult {

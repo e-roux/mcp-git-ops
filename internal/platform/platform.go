@@ -60,10 +60,17 @@ type ReleaseCreateOptions struct {
 	Target     string
 }
 
+type ListReleasesOptions struct {
+	Limit int
+}
+
 type ReleaseInfo struct {
-	Tag   string
-	Title string
-	URL   string
+	Tag          string `json:"tag"`
+	Title        string `json:"title"`
+	URL          string `json:"url"`
+	IsDraft      bool   `json:"is_draft"`
+	IsPrerelease bool   `json:"is_prerelease"`
+	PublishedAt  string `json:"published_at"`
 }
 
 type Platform interface {
@@ -73,6 +80,7 @@ type Platform interface {
 	MergePR(ctx context.Context, opts PRMergeOptions) (*CommandResult, error)
 	PRStatus(ctx context.Context, opts PRStatusOptions) (*PRInfo, error)
 	CreateRelease(ctx context.Context, opts ReleaseCreateOptions) (*ReleaseInfo, error)
+	ListReleases(ctx context.Context, opts ListReleasesOptions) ([]ReleaseInfo, error)
 }
 
 var protectedBranches = parseProtectedBranches()
