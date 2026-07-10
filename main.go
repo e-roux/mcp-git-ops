@@ -8,7 +8,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-const serverVersion = "0.2.0"
+const serverVersion = "0.3.0"
 
 func main() {
 	mcpServer := server.NewMCPServer(
