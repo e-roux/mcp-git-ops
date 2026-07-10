@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -101,6 +102,40 @@ func (g *GitLabPlatform) CreateRelease(_ context.Context, opts ReleaseCreateOpti
 		return nil, fmt.Errorf("glab release create: %s", output)
 	}
 	return &ReleaseInfo{Tag: opts.Tag, Title: opts.Title, URL: ExtractURL(output)}, nil
+}
+
+func (g *GitLabPlatform) ListReleases(_ context.Context, opts ListReleasesOptions) ([]ReleaseInfo, error) {
+	perPage := opts.Limit
+	if perPage <= 0 {
+		perPage = 30
+	}
+
+	args := []string{"release", "list", "-F", "json", "--per-page", fmt.Sprintf("%d", perPage)}
+	output, err := RunExternalCommand(g.Dir, "glab", args...)
+	if err != nil {
+		return nil, fmt.Errorf("glab release list: %s", output)
+	}
+
+	var data []struct {
+		TagName    string `json:"tag_name"`
+		Name       string `json:"name"`
+		ReleasedAt string `json:"released_at"`
+	}
+
+	if err := json.Unmarshal([]byte(output), &data); err != nil {
+		return nil, fmt.Errorf("parse glab release list output: %w", err)
+	}
+
+	releases := make([]ReleaseInfo, len(data))
+	for i, r := range data {
+		releases[i] = ReleaseInfo{
+			Tag:         r.TagName,
+			Title:       r.Name,
+			PublishedAt: r.ReleasedAt,
+		}
+	}
+
+	return releases, nil
 }
 
 func ParseGitLabMROutput(output string) *PRInfo {

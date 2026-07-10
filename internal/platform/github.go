@@ -123,3 +123,41 @@ func (g *GitHubPlatform) CreateRelease(_ context.Context, opts ReleaseCreateOpti
 	}
 	return &ReleaseInfo{Tag: opts.Tag, Title: opts.Title, URL: ExtractURL(output)}, nil
 }
+
+func (g *GitHubPlatform) ListReleases(_ context.Context, opts ListReleasesOptions) ([]ReleaseInfo, error) {
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 30
+	}
+
+	args := []string{"release", "list", "--json", "tagName,name,isDraft,isPrerelease,publishedAt", "--limit", fmt.Sprintf("%d", limit)}
+	output, err := RunExternalCommand(g.Dir, "gh", args...)
+	if err != nil {
+		return nil, fmt.Errorf("gh release list: %s", output)
+	}
+
+	var data []struct {
+		TagName      string `json:"tagName"`
+		Name         string `json:"name"`
+		IsDraft      bool   `json:"isDraft"`
+		IsPrerelease bool   `json:"isPrerelease"`
+		PublishedAt  string `json:"publishedAt"`
+	}
+
+	if err := json.Unmarshal([]byte(output), &data); err != nil {
+		return nil, fmt.Errorf("parse gh release list output: %w", err)
+	}
+
+	releases := make([]ReleaseInfo, len(data))
+	for i, r := range data {
+		releases[i] = ReleaseInfo{
+			Tag:          r.TagName,
+			Title:        r.Name,
+			IsDraft:      r.IsDraft,
+			IsPrerelease: r.IsPrerelease,
+			PublishedAt:  r.PublishedAt,
+		}
+	}
+
+	return releases, nil
+}
